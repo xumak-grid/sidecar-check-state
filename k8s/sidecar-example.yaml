@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: sidecar-check-state
+  namespace: demo
+spec:
+  containers:
+    - name: test-container
+      image: gcr.io/google_containers/busybox
+      command: [ "/bin/sh", "-c", "while true; do echo '\nfile content: '; cat /etc/conf/farm/myFile; sleep 5; done" ]
+      volumeMounts:
+      - name: config-volume-farm
+        mountPath: /etc/conf/farm
+
+    - name: test-sidecar
+      image: 
+      livenessProbe:
+        failureThreshold: 1
+        httpGet:
+          path: /check/liveness
+          port: 9090
+          scheme: HTTP
+        initialDelaySeconds: 20
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      env:
+      - name: SIDE_CAR_CONFIG_FILES
+        value: /etc/conf/farm/myFile
+      ports:
+      - containerPort: 9090
+        name: http
+        protocol: TCP
+      volumeMounts:
+      - name: config-volume-farm
+        mountPath: /etc/conf/farm
+  
+  volumes:
+    - name: config-volume-farm
+      configMap:
+        # Provide the name of the ConfigMap containing the files you want
+        # to add to the container
+        name: special-config
+        items:
+        - key: special.level
+          path: myFile
+
